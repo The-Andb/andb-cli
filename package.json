@@ -1,0 +1,36 @@
+{
+  "name": "@andb/cli",
+  "version": "1.0.0-beta.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "CLI tool for andb-core database migration and comparison",
+  "main": "index.js",
+  "bin": {
+    "andb": "./andb.js"
+  },
+  "type": "commonjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "keywords": [
+    "database",
+    "migration",
+    "cli",
+    "mysql",
+    "andb"
+  ],
+  "author": "ph4n4n",
+  "license": "MIT",
+  "dependencies": {
+    "@andb/core": "^1.0.0-beta.1",
+    "andb-logger": "^1.0.3",
+    "js-yaml": "^4.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ph4n4n/andb-cli.git"
+  }
+}
