@@ -53,6 +53,14 @@ if (isInitCommand) {
         replaceWithEnv: (str) => str,
         ENVIRONMENTS: yamlConfig.order
       };
+
+      // Add domain normalization if present
+      if (yamlConfig.normalization) {
+        userConfig.domainNormalization = {
+          pattern: new RegExp(yamlConfig.normalization.pattern, 'g'),
+          replacement: yamlConfig.normalization.replacement
+        };
+      }
     } catch (error) {
       console.error('❌ Error loading andb.yaml:', error.message);
       process.exit(1);
