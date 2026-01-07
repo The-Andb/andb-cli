@@ -157,9 +157,9 @@ andb helper --list          # List generated npm scripts
 
 ## Support
 
-- **Issues:** [github.com/ph4n4n/andb-cli/issues](https://github.com/ph4n4n/andb-cli/issues)
+- **Issues:** [github.com/The-Andb/andb-cli/issues](https://github.com/The-Andb/andb-cli/issues)
 - **Core Package:** [@andb/core](https://www.npmjs.com/package/@andb/core)
 
 ---
 
-**MIT © ph4n4n**
+**MIT © The Andb**
