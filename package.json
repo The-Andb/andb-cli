@@ -25,7 +25,7 @@
   "author": "ph4n4n",
   "license": "MIT",
   "dependencies": {
-    "@andb/core": "^1.0.0-beta.1",
+    "@the-andb/core": "^2.1.1",
     "andb-logger": "^1.0.3",
     "js-yaml": "^4.1.0"
   },
