@@ -23,14 +23,16 @@
     "andb"
   ],
   "author": "ph4n4n",
-  "license": "MIT",
+  "license": "SEE LICENSE IN ../LICENSE",
   "dependencies": {
-    "@the-andb/core": "^2.1.1",
+    "@the-andb/core": "*",
     "andb-logger": "^1.0.3",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "nest-commander": "^3.12.0",
+    "reflect-metadata": "^0.2.0"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ph4n4n/andb-cli.git"
+    "url": "git+https://github.com/The-Andb/andb-cli.git"
   }
 }
