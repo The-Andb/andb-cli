@@ -8,12 +8,12 @@
 
 require('reflect-metadata');
 const { CommandFactory } = require('nest-commander');
-const { AppModule } = require('@the-andb/core');
+const { CliModule } = require('./dist/cli.module');
 
 async function bootstrap() {
   try {
     // Run the NestJS CLI context
-    await CommandFactory.run(AppModule, {
+    await CommandFactory.run(CliModule, {
       logger: ['error', 'warn'],
       errorHandler: (err) => {
         console.error('❌ FATAL ERROR:', err.message);
