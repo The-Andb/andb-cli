@@ -33,6 +33,7 @@ export class ExportCommand extends CommandRunner {
       console.table(result);
     } catch (error: any) {
       this.logger.error(`Export failed: ${error.message}`);
+      process.exitCode = 1;
     }
   }
 

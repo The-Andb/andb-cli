@@ -5,11 +5,14 @@ import {
   ParserService,
   ComparatorService,
   MigratorService,
+  MysqlMigrator,
 } from '@the-andb/core';
+import * as yaml from 'js-yaml';
 
 interface PlaygroundOptions {
   source?: string;
   target?: string;
+  format?: 'text' | 'json' | 'yaml';
 }
 
 @Injectable()
@@ -41,28 +44,74 @@ export class PlaygroundCommand extends CommandRunner {
       const srcDDL = fs.readFileSync(options.source, 'utf-8');
       const targetDDL = fs.readFileSync(options.target, 'utf-8');
 
-      this.logger.log(`Comparing ${options.source} against ${options.target}...`);
+      const format = options.format || 'text';
+      const isMachineReadable = format === 'json' || format === 'yaml';
+
+      if (!isMachineReadable) {
+        this.logger.log(`Comparing ${options.source} against ${options.target}...`);
+      }
 
       const srcTable = this.parser.parseTable(srcDDL);
       const destTable = this.parser.parseTable(targetDDL);
 
-      this.logger.log('--- Parsed Current Schema Table (Target) ---');
-      console.log(JSON.stringify(srcTable, null, 2));
+      if (!isMachineReadable) {
+        this.logger.log('--- Parsed Current Schema Table (Target) ---');
+        console.log(JSON.stringify(srcTable, null, 2));
 
-      this.logger.log('--- Parsed Desired Schema Table (Source) ---');
-      console.log(JSON.stringify(destTable, null, 2));
+        this.logger.log('--- Parsed Desired Schema Table (Source) ---');
+        console.log(JSON.stringify(destTable, null, 2));
+      }
 
       // Note: Comparator Service compares: Desired vs Current.
       // So Desired = target.sql (dest), Current = source.sql (src)
       const diffOps = this.comparator.compareTables(targetDDL, srcDDL);
 
-      this.logger.log('--- Diff Operations ---');
-      console.log(JSON.stringify(diffOps, null, 2));
+      // Playground is offline and has no driver, so we default to standard MySQL syntax
+      // In the future, PlaygroundCommand could take a `--dialect postgres` flag to initialize the specific Migrator
+      const defaultMigrator = new MysqlMigrator();
+      const sqls = this.migrator.generateAlterSQL(diffOps, defaultMigrator);
 
-      this.logger.log('--- Generated ALTER TABLE SQL ---');
-      const sqls = this.migrator.generateAlterSQL(diffOps);
-      sqls.forEach(sql => console.log(sql));
+      // Exit codes logic
+      let exitCode = 0;
+      let hasDestructive = false;
 
+      if (diffOps.hasChanges && sqls.length > 0) {
+        hasDestructive = diffOps.operations.some((op: any) => op.type === 'DROP');
+        exitCode = hasDestructive ? 2 : 1;
+      }
+
+      if (isMachineReadable) {
+        const output = {
+          hasChanges: diffOps.hasChanges,
+          destructive: hasDestructive,
+          operations: diffOps.operations,
+          sqls,
+          exitCode,
+        };
+
+        if (format === 'json') {
+          process.stdout.write(JSON.stringify(output, null, 2) + '\n');
+        } else {
+          process.stdout.write(yaml.dump(output) + '\n');
+        }
+      } else {
+        this.logger.log('--- Diff Operations ---');
+        console.log(JSON.stringify(diffOps, null, 2));
+
+        this.logger.log('--- Generated ALTER TABLE SQL ---');
+        if (sqls.length > 0) {
+          sqls.forEach((sql) => console.log(sql));
+        } else {
+          console.log('✅ Tables are structurally identical.');
+        }
+      }
+
+      if (exitCode === 2) {
+        // Always warn about destructive changes to stderr
+        console.error('\n⚠️  DESTRUCTIVE CHANGES DETECTED: This transformation includes DROP operations.');
+      }
+
+      process.exitCode = exitCode;
     } catch (error: any) {
       this.logger.error(`Playground execution failed: ${error.message}`);
       process.exit(1);
@@ -82,6 +131,15 @@ export class PlaygroundCommand extends CommandRunner {
     description: 'Path to the target SQL file (e.g., desired schema)',
   })
   parseTarget(val: string): string {
+    return val;
+  }
+
+  @Option({
+    flags: '-f, --format [type]',
+    description: 'Output format (text, json, yaml)',
+    defaultValue: 'text',
+  })
+  parseFormat(val: string): string {
     return val;
   }
 }

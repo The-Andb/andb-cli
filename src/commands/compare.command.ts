@@ -5,11 +5,14 @@ import { ProjectConfigService } from '@the-andb/core';
 import { ReporterService } from '@the-andb/core';
 import { Logger } from '@nestjs/common';
 import * as path from 'path';
+import * as yaml from 'js-yaml';
 
 interface CompareCommandOptions {
   source?: string;
   dest?: string;
   report?: string;
+  format?: 'text' | 'json' | 'yaml';
+  autoBackup?: boolean;
 }
 
 @Command({
@@ -40,7 +43,16 @@ export class CompareCommand extends CommandRunner {
     }
 
     try {
-      this.logger.log(`Comparing ${sourceEnv} (Source) -> ${destEnv} (Destination)`);
+      const format = options?.format || 'text';
+      const isMachineReadable = format === 'json' || format === 'yaml';
+
+      if (!isMachineReadable) {
+        this.logger.log(`Comparing ${sourceEnv} (Source) -> ${destEnv} (Destination)`);
+      }
+
+      if (options?.autoBackup !== undefined) {
+        (this.configService as any).setAutoBackup(options.autoBackup);
+      }
 
       const srcConn = this.configService.getConnection(sourceEnv);
       const destConn = this.configService.getConnection(destEnv);
@@ -54,34 +66,96 @@ export class CompareCommand extends CommandRunner {
 
       try {
         await srcDriver.connect();
-        await destDriver.connect();
+      } catch (err: any) {
+        this.logger.error(`Source connection failed (${sourceEnv}): ${err.message}`);
+        if (isMachineReadable) {
+          process.stdout.write(JSON.stringify({ error: `Source connection failed: ${err.message}`, exitCode: 1 }) + '\n');
+        }
+        process.exitCode = 1;
+        return;
+      }
 
+      try {
+        await destDriver.connect();
+      } catch (err: any) {
+        this.logger.error(`Destination connection failed (${destEnv}): ${err.message}`);
+        await srcDriver.disconnect();
+        if (isMachineReadable) {
+          process.stdout.write(JSON.stringify({ error: `Destination connection failed: ${err.message}`, exitCode: 1 }) + '\n');
+        }
+        process.exitCode = 1;
+        return;
+      }
+
+      try {
         const diff = await this.comparator.compareSchema(
           srcDriver.getIntrospectionService(),
           destDriver.getIntrospectionService(),
           srcConn.config.database || 'default',
         );
 
-        this.logger.log('Comparison completed!');
-        console.log('\n--- Summary ---');
-        console.table(diff.summary);
-
+        let hasDestructive = false;
         if (diff.summary.totalChanges > 0) {
-          console.log('\n--- Tables ---');
           for (const tableName in diff.tables) {
-            console.log(`⚠️  ${tableName}: ${diff.tables[tableName].operations.length} changes`);
+            if (diff.tables[tableName].operations.some((op: any) => op.type === 'DROP')) {
+              hasDestructive = true;
+              break;
+            }
           }
-          if (diff.droppedTables.length > 0) {
-            console.log(`🗑️  Dropped Tables: ${diff.droppedTables.join(', ')}`);
-          }
-
-          console.log('\n--- Objects ---');
-          diff.objects.forEach((obj) => {
-            console.log(`✨ [${obj.type}] ${obj.name} (${obj.operation})`);
-          });
-        } else {
-          console.log('✅ Schemas are identical!');
+          if (!hasDestructive && diff.droppedTables.length > 0) hasDestructive = true;
+          if (!hasDestructive && diff.objects.some((obj) => obj.operation === 'DROP')) hasDestructive = true;
         }
+
+        let exitCode = 0;
+        if (diff.summary.totalChanges > 0) {
+          exitCode = hasDestructive ? 2 : 1;
+        }
+
+        if (isMachineReadable) {
+          const output = {
+            summary: diff.summary,
+            tables: diff.tables,
+            droppedTables: diff.droppedTables,
+            objects: diff.objects,
+            destructive: hasDestructive,
+            exitCode,
+          };
+
+          if (format === 'json') {
+            process.stdout.write(JSON.stringify(output, null, 2) + '\n');
+          } else {
+            process.stdout.write(yaml.dump(output) + '\n');
+          }
+        } else {
+          this.logger.log('Comparison completed!');
+          console.log('\n--- Summary ---');
+          console.table(diff.summary);
+
+          if (diff.summary.totalChanges > 0) {
+            console.log('\n--- Tables ---');
+            for (const tableName in diff.tables) {
+              console.log(`⚠️  ${tableName}: ${diff.tables[tableName].operations.length} changes`);
+            }
+
+            if (diff.droppedTables.length > 0) {
+              console.log(`🗑️  Dropped Tables: ${diff.droppedTables.join(', ')}`);
+            }
+
+            console.log('\n--- Objects ---');
+            diff.objects.forEach((obj) => {
+              console.log(`✨ [${obj.type}] ${obj.name} (${obj.operation})`);
+            });
+          } else {
+            console.log('✅ Schemas are identical!');
+          }
+        }
+
+        if (hasDestructive) {
+          // Always warn about destructive changes to stderr
+          console.error('\n⚠️  DESTRUCTIVE CHANGES DETECTED: This migration includes DROP operations.');
+        }
+
+        process.exitCode = exitCode;
 
         if (options?.report) {
           const reportPath =
@@ -94,7 +168,9 @@ export class CompareCommand extends CommandRunner {
             diff,
             reportPath,
           );
-          console.log(`\n📄 HTML Report generated: ${reportPath}`);
+          if (!isMachineReadable) {
+            console.log(`\n📄 HTML Report generated: ${reportPath}`);
+          }
         }
       } finally {
         await srcDriver.disconnect();
@@ -102,6 +178,7 @@ export class CompareCommand extends CommandRunner {
       }
     } catch (error: any) {
       this.logger.error(`Comparison failed: ${error.message}`);
+      process.exit(1);
     }
   }
 
@@ -127,5 +204,22 @@ export class CompareCommand extends CommandRunner {
   })
   parseDest(val: string): string {
     return val;
+  }
+
+  @Option({
+    flags: '-f, --format [type]',
+    description: 'Output format (text, json, yaml)',
+    defaultValue: 'text',
+  })
+  parseFormat(val: string): string {
+    return val;
+  }
+
+  @Option({
+    flags: '--auto-backup [boolean]',
+    description: 'Enable/disable auto-backup before migration (default: true)',
+  })
+  parseAutoBackup(val: string): boolean {
+    return val !== 'false';
   }
 }
