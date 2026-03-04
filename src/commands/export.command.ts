@@ -1,55 +1,32 @@
-import { Command, CommandRunner, Option } from 'nest-commander';
-import { ExporterService } from '@the-andb/core';
-import { Logger } from '@nestjs/common';
+const { getLogger } = require('andb-logger');
+import { Command } from 'commander';
+import { Container } from '@the-andb/core';
 
-interface ExportCommandOptions {
-  env?: string;
-  name?: string;
-}
+const logger = getLogger({ logName: 'ExportCommand' });
 
-@Command({
-  name: 'export',
-  description: 'Export database schema to files',
-})
-export class ExportCommand extends CommandRunner {
-  private readonly logger = new Logger(ExportCommand.name);
+export function register(program: Command) {
+  program
+    .command('export')
+    .description('Export database schema to files')
+    .option('-e, --env <env>', 'Environment name to export')
+    .option('-n, --name <name>', 'Specific object name to export')
+    .action(async (options: any, cmd: any) => {
+      const env = options.env || cmd.args?.[0];
 
-  constructor(private readonly exporter: ExporterService) {
-    super();
-  }
+      if (!env) {
+        logger.error('Environment name is required. Usage: andb export <env>');
+        return;
+      }
 
-  async run(passedParam: string[], options?: ExportCommandOptions): Promise<void> {
-    const env = options?.env || passedParam[0];
-
-    if (!env) {
-      this.logger.error('Environment name is required. Usage: andb export <env>');
-      return;
-    }
-
-    try {
-      this.logger.log(`Starting export for environment: ${env}`);
-      const result = await this.exporter.exportSchema(env, options?.name);
-      this.logger.log(`Export completed successfully!`);
-      console.table(result);
-    } catch (error: any) {
-      this.logger.error(`Export failed: ${error.message}`);
-      process.exitCode = 1;
-    }
-  }
-
-  @Option({
-    flags: '-e, --env <env>',
-    description: 'Environment name to export',
-  })
-  parseEnv(val: string): string {
-    return val;
-  }
-
-  @Option({
-    flags: '-n, --name <name>',
-    description: 'Specific object name to export',
-  })
-  parseName(val: string): string {
-    return val;
-  }
+      try {
+        const container = Container.create();
+        logger.info(`Starting export for environment: ${env}`);
+        const result = await container.exporter.exportSchema(env, options.name);
+        logger.info(`Export completed successfully!`);
+        console.table(result);
+      } catch (error: any) {
+        logger.error(`Export failed: ${error.message}`);
+        process.exitCode = 1;
+      }
+    });
 }

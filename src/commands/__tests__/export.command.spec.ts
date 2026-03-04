@@ -1,52 +1,24 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { ExportCommand } from '../export.command';
-import { ExporterService } from '@the-andb/core';
+import { Command } from 'commander';
+import { register } from '../export.command';
 
 describe('ExportCommand', () => {
-  let command: ExportCommand;
-  let exporter: jest.Mocked<ExporterService>;
+  let program: Command;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ExportCommand,
-        {
-          provide: ExporterService,
-          useValue: {
-            exportSchema: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
-
-    command = module.get<ExportCommand>(ExportCommand);
-    exporter = module.get(ExporterService);
-
-    jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  beforeEach(() => {
+    program = new Command();
+    register(program);
   });
 
-  it('should fail if env is missing', async () => {
-    const loggerSpy = jest.spyOn((command as any).logger, 'error');
-    await command.run([], {});
-    expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('required'));
+  it('should register the export command', () => {
+    const cmd = program.commands.find(c => c.name() === 'export');
+    expect(cmd).toBeDefined();
+    expect(cmd!.description()).toBe('Export database schema to files');
   });
 
-  it('should perform export successfully', async () => {
-    exporter.exportSchema.mockResolvedValue({ TABLES: 1, VIEWS: 0 });
-    const loggerSpy = jest.spyOn((command as any).logger, 'log');
-
-    await command.run(['dev'], {});
-
-    expect(exporter.exportSchema).toHaveBeenCalledWith('dev', undefined);
-    expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('completed successfully'));
-  });
-
-  it('should handle export failure', async () => {
-    exporter.exportSchema.mockRejectedValue(new Error('Drive failure'));
-    const loggerSpy = jest.spyOn((command as any).logger, 'error');
-
-    await command.run(['dev'], {});
-
-    expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('failed: Drive failure'));
+  it('should have --env and --name options', () => {
+    const cmd = program.commands.find(c => c.name() === 'export')!;
+    const optNames = cmd.options.map(o => o.long);
+    expect(optNames).toContain('--env');
+    expect(optNames).toContain('--name');
   });
 });

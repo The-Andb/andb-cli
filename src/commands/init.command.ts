@@ -1,25 +1,24 @@
-import { Command, CommandRunner } from 'nest-commander';
-import { Logger } from '@nestjs/common';
+const { getLogger } = require('andb-logger');
+import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
 
-@Command({
-  name: 'init',
-  description: 'Initialize a new Andb project with default config',
-})
-export class InitCommand extends CommandRunner {
-  private readonly logger = new Logger(InitCommand.name);
+const logger = getLogger({ logName: 'InitCommand' });
 
-  async run(): Promise<void> {
-    const cwd = process.cwd();
-    const yamlPath = path.join(cwd, 'andb.yaml');
+export function register(program: Command) {
+  program
+    .command('init')
+    .description('Initialize a new Andb project with default config')
+    .action(async () => {
+      const cwd = process.cwd();
+      const yamlPath = path.join(cwd, 'andb.yaml');
 
-    if (fs.existsSync(yamlPath)) {
-      this.logger.warn('andb.yaml already exists. Skipping initialization.');
-      return;
-    }
+      if (fs.existsSync(yamlPath)) {
+        logger.warn('andb.yaml already exists. Skipping initialization.');
+        return;
+      }
 
-    const defaultConfig = `
+      const defaultConfig = `
 # The Andb Configuration
 # Documentation: https://github.com/The-Andb/andb
 
@@ -52,20 +51,17 @@ environments:
 
 # Optional: Domain/Data Normalization
 normalization:
-  pattern: "dev\.example\.com"
-  replacement: "prod\.example\.com"
+  pattern: "dev\\.example\\.com"
+  replacement: "prod\\.example\\.com"
 `;
 
-    try {
-      fs.writeFileSync(yamlPath, defaultConfig.trim() + '\n');
-      this.logger.log('✅ Created andb.yaml successfully!');
-
-      // Also update package.json with scripts
-      this.logger.log('Updating package.json with utility scripts...');
-      // We can use GenerateCommand logic here or just tell user to run andb generate
-      console.log('\nSuggested next step: Run "andb generate" to create scripts in package.json\n');
-    } catch (error: any) {
-      this.logger.error(`Failed to initialize project: ${error.message}`);
-    }
-  }
+      try {
+        fs.writeFileSync(yamlPath, defaultConfig.trim() + '\n');
+        logger.info('✅ Created andb.yaml successfully!');
+        logger.info('Updating package.json with utility scripts...');
+        console.log('\nSuggested next step: Run "andb generate" to create scripts in package.json\n');
+      } catch (error: any) {
+        logger.error(`Failed to initialize project: ${error.message}`);
+      }
+    });
 }

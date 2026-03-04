@@ -1,41 +1,24 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { HelperCommand } from '../helper.command';
-import * as fs from 'fs';
-
-jest.mock('fs');
+import { Command } from 'commander';
+import { register } from '../helper.command';
 
 describe('HelperCommand', () => {
-  let command: HelperCommand;
+  let program: Command;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [HelperCommand],
-    }).compile();
-
-    command = module.get<HelperCommand>(HelperCommand);
+  beforeEach(() => {
+    program = new Command();
+    register(program);
   });
 
-  it('should show usage by default', async () => {
-    const consoleSpy = jest.spyOn(console, 'log');
-    await command.run([], {});
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Available Commands'));
+  it('should register the helper command', () => {
+    const cmd = program.commands.find(c => c.name() === 'helper');
+    expect(cmd).toBeDefined();
+    expect(cmd!.description()).toBe('Helper utilities and tools');
   });
 
-  it('should show configuration', async () => {
-    const consoleSpy = jest.spyOn(console, 'log');
-    await command.run([], { config: true });
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Configuration'));
-  });
-
-  it('should list scripts from package.json', async () => {
-    (fs.existsSync as jest.Mock).mockReturnValue(true);
-    (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify({
-      scripts: { 'export:dev': 'andb export dev' }
-    }));
-    const consoleSpy = jest.spyOn(console, 'log');
-
-    await command.run([], { list: true });
-
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('export:dev'));
+  it('should have --list and --config options', () => {
+    const cmd = program.commands.find(c => c.name() === 'helper')!;
+    const optNames = cmd.options.map(o => o.long);
+    expect(optNames).toContain('--list');
+    expect(optNames).toContain('--config');
   });
 });

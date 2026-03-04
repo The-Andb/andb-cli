@@ -2,46 +2,24 @@
 
 /**
  * andb-cli - Command Line Interface for andb-core
- * 
- * This is a thin wrapper around the NestJS CLI implementation in @the-andb/core
+ * Lightweight, framework-free
  */
 
-require('reflect-metadata');
-const { CommandFactory } = require('nest-commander');
-const { CliModule } = require('./dist/cli.module');
-const { Logger } = require('@nestjs/common');
+const { Command } = require('commander');
+const program = new Command();
 
-async function bootstrap() {
-  try {
-    const customLogger = {
-      log: () => { },
-      error: (...args) => console.error(...args),
-      warn: (...args) => console.error(...args),
-      debug: () => { },
-      verbose: () => { },
-    };
-    const isMachineReadable = process.argv.some(arg =>
-      ['-f', '--format'].includes(arg) &&
-      ['json', 'yaml'].includes(process.argv[process.argv.indexOf(arg) + 1])
-    );
+program
+  .name('andb')
+  .version(require('./package.json').version)
+  .description('The Andb - Database Schema Migration Tool');
 
-    if (isMachineReadable) {
-      process.env.ANDB_QUIET = '1';
-      Logger.overrideLogger(false);
-    }
+// Register commands
+require('./dist/commands/init.command').register(program);
+require('./dist/commands/export.command').register(program);
+require('./dist/commands/compare.command').register(program);
+require('./dist/commands/migrate.command').register(program);
+require('./dist/commands/generate.command').register(program);
+require('./dist/commands/helper.command').register(program);
+require('./dist/commands/playground.command').register(program);
 
-    // Run the NestJS CLI context
-    await CommandFactory.run(CliModule, {
-      logger: isMachineReadable ? customLogger : ['error', 'warn'],
-      errorHandler: (err) => {
-        console.error('❌ FATAL ERROR:', err.message);
-        process.exit(1);
-      }
-    });
-  } catch (error) {
-    console.error('❌ Failed to bootstrap CLI:', error.message);
-    process.exit(1);
-  }
-}
-
-bootstrap();
+program.parse(process.argv);

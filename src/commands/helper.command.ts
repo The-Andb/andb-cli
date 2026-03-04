@@ -1,54 +1,35 @@
-import { Command, CommandRunner, Option } from 'nest-commander';
-import { Logger } from '@nestjs/common';
+const { getLogger } = require('andb-logger');
+import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
 
-interface HelperOptions {
-  list?: boolean;
-  config?: boolean;
+const logger = getLogger({ logName: 'HelperCommand' });
+
+const ENVIRONMENTS = ['LOCAL', 'DEV', 'UAT', 'STAGE', 'PROD'];
+const DDL_TYPES = ['fn', 'sp', 'tbl', 'trg'];
+const MIGRATE_TYPES = ['new', 'update'];
+const DEPRECATE_TYPES = ['fn', 'sp', 'trg'];
+
+export function register(program: Command) {
+  program
+    .command('helper')
+    .alias('help-andb')
+    .description('Helper utilities and tools')
+    .option('-l, --list', 'List available helpers')
+    .option('-c, --config', 'Show current configuration')
+    .action(async (options: any) => {
+      if (options.list) {
+        listScripts();
+      } else if (options.config) {
+        showConfiguration();
+      } else {
+        showUsage();
+      }
+    });
 }
 
-@Command({
-  name: 'helper',
-  aliases: ['help'],
-  description: 'Helper utilities and tools',
-})
-export class HelperCommand extends CommandRunner {
-  private readonly logger = new Logger(HelperCommand.name);
-
-  private readonly ENVIRONMENTS = ['LOCAL', 'DEV', 'UAT', 'STAGE', 'PROD'];
-  private readonly DDL_TYPES = ['fn', 'sp', 'tbl', 'trg'];
-  private readonly MIGRATE_TYPES = ['new', 'update'];
-  private readonly DEPRECATE_TYPES = ['fn', 'sp', 'trg'];
-
-  async run(inputs: string[], options: HelperOptions): Promise<void> {
-    if (options.list) {
-      this.listScripts();
-    } else if (options.config) {
-      this.showConfiguration();
-    } else {
-      this.showUsage();
-    }
-  }
-
-  @Option({
-    flags: '-l, --list',
-    description: 'List available helpers',
-  })
-  parseList(): boolean {
-    return true;
-  }
-
-  @Option({
-    flags: '-c, --config',
-    description: 'Show current configuration',
-  })
-  parseConfig(): boolean {
-    return true;
-  }
-
-  private showUsage() {
-    console.log(`
+function showUsage() {
+  console.log(`
 🔧 ANDB Script Helper
 =====================
 
@@ -97,10 +78,10 @@ export class HelperCommand extends CommandRunner {
    npm run dep:stage:sp:ote       # Remove OTE procedures in STAGE
    npm run deprecate:prod         # Deprecate all in PROD
 
-📊 Environments: ${this.ENVIRONMENTS.join(', ')}
-🔧 DDL Types: ${this.DDL_TYPES.join(', ')}
-🔄 Migrate Types: ${this.MIGRATE_TYPES.join(', ')}
-⚠️ Deprecate Types: ${this.DEPRECATE_TYPES.join(', ')} (no tables)
+📊 Environments: ${ENVIRONMENTS.join(', ')}
+🔧 DDL Types: ${DDL_TYPES.join(', ')}
+🔄 Migrate Types: ${MIGRATE_TYPES.join(', ')}
+⚠️ Deprecate Types: ${DEPRECATE_TYPES.join(', ')} (no tables)
 
 💡 Quick Examples:
 -----------------
@@ -126,10 +107,10 @@ npm run helper --config          # Show current configuration
 - OTE removal only applies to functions and procedures
 - Use 'dep' as shorthand for 'deprecate'
 `);
-  }
+}
 
-  private showConfiguration() {
-    console.log(`
+function showConfiguration() {
+  console.log(`
 ⚙️ ANDB Configuration
 =====================
 
@@ -137,85 +118,81 @@ npm run helper --config          # Show current configuration
 ------------------------------------
 
 🌍 Environment Variables:
-${
-  process.env.ANDB_ENVIRONMENTS
-    ? `
+${process.env.ANDB_ENVIRONMENTS
+      ? `
   ANDB_ENVIRONMENTS: ${process.env.ANDB_ENVIRONMENTS}
 `
-    : '  ANDB_ENVIRONMENTS: Not set'
-}
-${
-  process.env.ANDB_COMPARE_ENVIRONMENTS
-    ? `
+      : '  ANDB_ENVIRONMENTS: Not set'
+    }
+${process.env.ANDB_COMPARE_ENVIRONMENTS
+      ? `
   ANDB_COMPARE_ENVIRONMENTS: ${process.env.ANDB_COMPARE_ENVIRONMENTS}
 `
-    : '  ANDB_COMPARE_ENVIRONMENTS: Not set'
-}
-${
-  process.env.ANDB_MIGRATE_ENVIRONMENTS
-    ? `
+      : '  ANDB_COMPARE_ENVIRONMENTS: Not set'
+    }
+${process.env.ANDB_MIGRATE_ENVIRONMENTS
+      ? `
   ANDB_MIGRATE_ENVIRONMENTS: ${process.env.ANDB_MIGRATE_ENVIRONMENTS}
 `
-    : '  ANDB_MIGRATE_ENVIRONMENTS: Not set'
-}
+      : '  ANDB_MIGRATE_ENVIRONMENTS: Not set'
+    }
 
 📊 Default Configuration:
-  All Environments: ${this.ENVIRONMENTS.join(', ')}
-  Compare Environments: ${this.ENVIRONMENTS.filter((env) => env !== 'LOCAL').join(', ')}
-  Migrate Environments: ${this.ENVIRONMENTS.filter((env) => !['LOCAL', 'DEV'].includes(env)).join(', ')}
+  All Environments: ${ENVIRONMENTS.join(', ')}
+  Compare Environments: ${ENVIRONMENTS.filter((env) => env !== 'LOCAL').join(', ')}
+  Migrate Environments: ${ENVIRONMENTS.filter((env) => !['LOCAL', 'DEV'].includes(env)).join(', ')}
 
 💡 Configuration Priority:
   1. CLI Options (highest priority)
   2. Environment Variables
   3. Default Values (lowest priority)
 `);
+}
+
+function listScripts() {
+  const baseDir = process.cwd();
+  const packagePath = path.join(baseDir, 'package.json');
+
+  if (!fs.existsSync(packagePath)) {
+    logger.error(`Package.json not found at: ${packagePath}`);
+    return;
   }
 
-  private listScripts() {
-    const baseDir = process.cwd();
-    const packagePath = path.join(baseDir, 'package.json');
+  const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+  const scripts = packageJson.scripts || {};
 
-    if (!fs.existsSync(packagePath)) {
-      this.logger.error(`Package.json not found at: ${packagePath}`);
-      return;
+  const categories: Record<string, string[]> = {
+    export: [],
+    compare: [],
+    migrate: [],
+    deprecate: [],
+    utility: [],
+  };
+
+  Object.keys(scripts).forEach((script) => {
+    if (script.startsWith('export:')) {
+      categories.export.push(script);
+    } else if (script.startsWith('compare:')) {
+      categories.compare.push(script);
+    } else if (script.startsWith('migrate:')) {
+      categories.migrate.push(script);
+    } else if (script.startsWith('deprecate:') || script.startsWith('dep:')) {
+      categories.deprecate.push(script);
+    } else {
+      categories.utility.push(script);
     }
+  });
 
-    const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
-    const scripts = packageJson.scripts || {};
+  console.log('\n📋 All Available Scripts:');
+  console.log('==========================\n');
 
-    const categories: Record<string, string[]> = {
-      export: [],
-      compare: [],
-      migrate: [],
-      deprecate: [],
-      utility: [],
-    };
-
-    Object.keys(scripts).forEach((script) => {
-      if (script.startsWith('export:')) {
-        categories.export.push(script);
-      } else if (script.startsWith('compare:')) {
-        categories.compare.push(script);
-      } else if (script.startsWith('migrate:')) {
-        categories.migrate.push(script);
-      } else if (script.startsWith('deprecate:') || script.startsWith('dep:')) {
-        categories.deprecate.push(script);
-      } else {
-        categories.utility.push(script);
-      }
-    });
-
-    console.log('\n📋 All Available Scripts:');
-    console.log('==========================\n');
-
-    Object.entries(categories).forEach(([category, scriptList]) => {
-      if (scriptList.length > 0) {
-        console.log(`\n${category.toUpperCase()} (${scriptList.length}):`);
-        console.log('-'.repeat(category.length + 3));
-        scriptList.forEach((script) => {
-          console.log(`  ${script}`);
-        });
-      }
-    });
-  }
+  Object.entries(categories).forEach(([category, scriptList]) => {
+    if (scriptList.length > 0) {
+      console.log(`\n${category.toUpperCase()} (${scriptList.length}):`);
+      console.log('-'.repeat(category.length + 3));
+      scriptList.forEach((script) => {
+        console.log(`  ${script}`);
+      });
+    }
+  });
 }

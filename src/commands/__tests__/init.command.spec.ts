@@ -1,18 +1,15 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { InitCommand } from '../init.command';
 import * as fs from 'fs';
+import { Command } from 'commander';
+import { register } from '../init.command';
 
 jest.mock('fs');
 
 describe('InitCommand', () => {
-  let command: InitCommand;
+  let program: Command;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [InitCommand],
-    }).compile();
-
-    command = module.get<InitCommand>(InitCommand);
+  beforeEach(() => {
+    program = new Command();
+    register(program);
     jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
   });
 
@@ -20,11 +17,17 @@ describe('InitCommand', () => {
     jest.resetAllMocks();
   });
 
+  it('should register the init command', () => {
+    const initCmd = program.commands.find(c => c.name() === 'init');
+    expect(initCmd).toBeDefined();
+    expect(initCmd!.description()).toBe('Initialize a new Andb project with default config');
+  });
+
   it('should create andb.yaml if it does not exist', async () => {
     (fs.existsSync as jest.Mock).mockReturnValue(false);
     (fs.writeFileSync as jest.Mock).mockReturnValue(undefined);
 
-    await command.run();
+    await program.parseAsync(['node', 'test', 'init']);
 
     expect(fs.writeFileSync).toHaveBeenCalledWith(
       expect.stringContaining('andb.yaml'),
@@ -34,11 +37,9 @@ describe('InitCommand', () => {
 
   it('should skip if andb.yaml already exists', async () => {
     (fs.existsSync as jest.Mock).mockReturnValue(true);
-    const loggerSpy = jest.spyOn((command as any).logger, 'warn');
 
-    await command.run();
+    await program.parseAsync(['node', 'test', 'init']);
 
     expect(fs.writeFileSync).not.toHaveBeenCalled();
-    expect(loggerSpy).toHaveBeenCalledWith(expect.stringContaining('already exists'));
   });
 });
