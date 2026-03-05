@@ -13,6 +13,22 @@ program
   .version(require('./package.json').version)
   .description('The Andb - Database Schema Migration Tool');
 
+// Monkey-patch andb-logger to use stderr for informational/error logs
+const { getLogger } = require('andb-logger');
+const dummyLogger = getLogger();
+const LoggerProto = Object.getPrototypeOf(dummyLogger);
+['info', 'warn', 'error', 'dev'].forEach((level) => {
+  const original = LoggerProto[level];
+  if (original) {
+    LoggerProto[level] = function (...args) {
+      const oldLog = console.log;
+      console.log = console.error;
+      original.apply(this, args);
+      console.log = oldLog;
+    };
+  }
+});
+
 // Register commands
 require('./dist/commands/init.command').register(program);
 require('./dist/commands/export.command').register(program);

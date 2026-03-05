@@ -44,10 +44,10 @@ export function register(program: Command) {
 
         if (!isMachineReadable) {
           logger.info('--- Parsed Current Schema Table (Target) ---');
-          console.log(JSON.stringify(srcTable, null, 2));
+          console.error(JSON.stringify(srcTable, null, 2));
 
           logger.info('--- Parsed Desired Schema Table (Source) ---');
-          console.log(JSON.stringify(destTable, null, 2));
+          console.error(JSON.stringify(destTable, null, 2));
         }
 
         const diffOps = comparator.compareTables(targetDDL, srcDDL);
@@ -78,14 +78,14 @@ export function register(program: Command) {
             process.stdout.write(yaml.dump(output) + '\n');
           }
         } else {
-          logger.info('--- Diff Operations ---');
-          console.log(JSON.stringify(diffOps, null, 2));
+          console.error('--- Diff Operations ---');
+          console.error(JSON.stringify(diffOps, null, 2));
 
-          logger.info('--- Generated ALTER TABLE SQL ---');
+          console.error('--- Generated ALTER TABLE SQL ---');
           if (sqls.length > 0) {
             sqls.forEach((sql) => console.log(sql));
           } else {
-            console.log('✅ Tables are structurally identical.');
+            console.error('✅ Tables are structurally identical.');
           }
         }
 

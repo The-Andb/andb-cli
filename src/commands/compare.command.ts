@@ -118,25 +118,25 @@ export function register(program: Command) {
             }
           } else {
             logger.info('Comparison completed!');
-            console.log('\n--- Summary ---');
-            console.table(diff.summary);
+            console.error('\n--- Summary ---');
+            console.error(JSON.stringify(diff.summary, null, 2)); // console.table doesn't support stderr easily, using JSON for now or just headers
 
             if (diff.summary.totalChanges > 0) {
-              console.log('\n--- Tables ---');
+              console.error('\n--- Tables ---');
               for (const tableName in diff.tables) {
-                console.log(`⚠️  ${tableName}: ${diff.tables[tableName].operations.length} changes`);
+                console.error(`⚠️  ${tableName}: ${diff.tables[tableName].operations.length} changes`);
               }
 
               if (diff.droppedTables.length > 0) {
-                console.log(`🗑️  Dropped Tables: ${diff.droppedTables.join(', ')}`);
+                console.error(`🗑️  Dropped Tables: ${diff.droppedTables.join(', ')}`);
               }
 
-              console.log('\n--- Objects ---');
+              console.error('\n--- Objects ---');
               diff.objects.forEach((obj) => {
-                console.log(`✨ [${obj.type}] ${obj.name} (${obj.operation})`);
+                console.error(`✨ [${obj.type}] ${obj.name} (${obj.operation})`);
               });
             } else {
-              console.log('✅ Schemas are identical!');
+              console.error('✅ Schemas are identical!');
             }
           }
 

@@ -1,13 +1,13 @@
 {
   "name": "@the-andb/cli",
-  "version": "1.0.0-beta.1",
+  "version": "2.0.0-beta.1",
   "publishConfig": {
     "access": "public"
   },
   "description": "CLI tool for andb-core database migration and comparison",
   "main": "index.js",
   "bin": {
-    "andb": "./andb.js"
+    "andb": "andb.js"
   },
   "type": "commonjs",
   "scripts": {
@@ -27,7 +27,7 @@
   "author": "ph4n4n",
   "license": "SEE LICENSE IN ../LICENSE",
   "dependencies": {
-    "@the-andb/core": "1.0.0-beta.1",
+    "@the-andb/core": "4.0.0-beta.1",
     "andb-logger": "^1.0.3",
     "commander": "^11.1.0",
     "js-yaml": "^4.1.0"

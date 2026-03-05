@@ -132,24 +132,24 @@ export function register(program: Command) {
           );
           const safetyReport = migrator.getSafetyReport(allStatements);
 
-          console.log('\n--- Planned Changes ---');
-          console.table(diff.summary);
+          console.error('\n--- Planned Changes ---');
+          console.error(JSON.stringify(diff.summary, null, 2));
 
           // Safety Summary
-          console.log(`\n--- Safety Report [${safetyReport.level}] ---`);
+          console.error(`\n--- Safety Report [${safetyReport.level}] ---`);
           if (safetyReport.summary.critical.length > 0) {
             console.error(`  🔴 CRITICAL: ${safetyReport.summary.critical.length} statement(s)`);
             safetyReport.summary.critical.forEach((s: string) => console.error(`     ${s.substring(0, 80)}`));
           }
           if (safetyReport.summary.warning.length > 0) {
             console.warn(`  🟡 WARNING:  ${safetyReport.summary.warning.length} statement(s)`);
-            safetyReport.summary.warning.forEach((s: string) => console.warn(`     ${s.substring(0, 80)}`));
+            safetyReport.summary.warning.forEach((s: string) => console.error(`     ${s.substring(0, 80)}`));
           }
-          console.log(`  🟢 SAFE:     ${safetyReport.summary.safe.length} statement(s)`);
+          console.error(`  🟢 SAFE:     ${safetyReport.summary.safe.length} statement(s)`);
 
-          console.log('\n--- Object List ---');
+          console.error('\n--- Object List ---');
           objectsToMigrate.forEach((obj) =>
-            console.log(`- [${obj.type}] ${obj.name.padEnd(30)} | ${obj.status}`),
+            console.error(`- [${obj.type}] ${obj.name.padEnd(30)} | ${obj.status}`),
           );
 
           // Dry-run mode: show report and exit
