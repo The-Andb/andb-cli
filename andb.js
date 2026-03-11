@@ -13,10 +13,17 @@ program
   .version(require('./package.json').version)
   .description('The Andb - Database Schema Migration Tool');
 
-// Monkey-patch andb-logger to use stderr for informational/error logs
+// Monkey-patch andb-logger for clean CLI output
 const { getLogger } = require('andb-logger');
 const dummyLogger = getLogger();
 const LoggerProto = Object.getPrototypeOf(dummyLogger);
+
+// 1. Simplify log prefix: remove timestamp and service name
+LoggerProto.logStructured = function (level) {
+  return `${this.icons[level]}`;
+};
+
+// 2. Redirect info/warn/error/dev to stderr (keeps stdout clean for data/JSON pipes)
 ['info', 'warn', 'error', 'dev'].forEach((level) => {
   const original = LoggerProto[level];
   if (original) {
@@ -37,5 +44,6 @@ require('./dist/commands/migrate.command').register(program);
 require('./dist/commands/generate.command').register(program);
 require('./dist/commands/helper.command').register(program);
 require('./dist/commands/playground.command').register(program);
+require('./dist/commands/search.command').register(program);
 
 program.parse(process.argv);

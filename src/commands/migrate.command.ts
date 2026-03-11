@@ -130,7 +130,7 @@ export function register(program: Command) {
           const allStatements = objectsToMigrate.flatMap((obj: any) =>
             Array.isArray(obj.ddl) ? obj.ddl : (obj.ddl ? [obj.ddl] : [])
           );
-          const safetyReport = migrator.getSafetyReport(allStatements);
+          const safetyReport = await migrator.getSafetyReport(allStatements);
 
           console.error('\n--- Planned Changes ---');
           console.error(JSON.stringify(diff.summary, null, 2));

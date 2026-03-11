@@ -6,6 +6,8 @@ import {
   ComparatorService,
   MigratorService,
   MysqlMigrator,
+  ImpactAnalysisService,
+  SemanticDiffService,
 } from '@the-andb/core';
 import * as yaml from 'js-yaml';
 
@@ -27,7 +29,6 @@ export function register(program: Command) {
       try {
         const parser = new ParserService();
         const comparator = new ComparatorService(parser, {} as any, { getDomainNormalization: () => ({ pattern: /(?!)/, replacement: '' }) });
-        const migrator = new MigratorService();
 
         const srcDDL = fs.readFileSync(options.source, 'utf-8');
         const targetDDL = fs.readFileSync(options.target, 'utf-8');
@@ -51,15 +52,21 @@ export function register(program: Command) {
         }
 
         const diffOps = comparator.compareTables(targetDDL, srcDDL);
-
+        const migrator = new MigratorService();
+        const impactAnalysis = new ImpactAnalysisService();
+        const semanticDiff = new SemanticDiffService();
         const defaultMigrator = new MysqlMigrator();
         const sqls = migrator.generateAlterSQL(diffOps, defaultMigrator);
 
+        const safetyReport = await impactAnalysis.analyze(sqls);
+        const { summary: impact } = safetyReport as any;
+
+        const semanticReport = await semanticDiff.compare(srcDDL, targetDDL);
+
         let exitCode = 0;
-        let hasDestructive = false;
+        let hasDestructive = safetyReport.hasDestructive;
 
         if (diffOps.hasChanges && sqls.length > 0) {
-          hasDestructive = diffOps.operations.some((op: any) => op.type === 'DROP');
           exitCode = hasDestructive ? 2 : 1;
         }
 
@@ -67,6 +74,9 @@ export function register(program: Command) {
           const output = {
             hasChanges: diffOps.hasChanges,
             destructive: hasDestructive,
+            safetyLevel: safetyReport.level,
+            impact: impact,
+            semantic: semanticReport,
             operations: diffOps.operations,
             sqls,
             exitCode,
@@ -84,6 +94,22 @@ export function register(program: Command) {
           console.error('--- Generated ALTER TABLE SQL ---');
           if (sqls.length > 0) {
             sqls.forEach((sql) => console.log(sql));
+
+            console.error('\n--- 🧠 Advisor Report ---');
+            console.error(`Safety Level: ${safetyReport.level}`);
+            console.error(`Impact Summary:`);
+            console.error(`  - Tables Affected: ${impact.tablesAffected.join(', ')}`);
+            console.error(`  - Additions: ${impact.columnsAdded} cols, ${impact.indexesCreated} idx`);
+            console.error(`  - Deletions: ${impact.columnsDropped} cols, ${impact.indexesDropped} idx`);
+            console.error(`  - Destructive Ops: ${impact.destructiveOps}`);
+            if (impact.rebuildRisk) {
+              console.error(`  - 🔥 Rebuild Table Risk: YES (Metadata lock hazard)`);
+            }
+
+            if (semanticReport.summary.length > 0) {
+              console.error('\n--- 📝 Semantic Changes ---');
+              semanticReport.summary.forEach((s) => console.error(`  - ${s}`));
+            }
           } else {
             console.error('✅ Tables are structurally identical.');
           }

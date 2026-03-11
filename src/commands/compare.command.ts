@@ -82,6 +82,8 @@ export function register(program: Command) {
             srcDriver.getIntrospectionService(),
             destDriver.getIntrospectionService(),
             srcConn.config.database || 'default',
+            destConn.config.database || 'default',
+            destEnv
           );
 
           let hasDestructive = false;

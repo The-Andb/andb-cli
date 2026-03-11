@@ -10,13 +10,16 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
+    "paths": {
+      "@the-andb/core": ["../andb-core/src"],
+      "@the-andb/core/*": ["../andb-core/src/*"]
+    },
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,
     "noImplicitAny": false,
     "strictBindCallApply": false,
-    "forceConsistentCasingInFileNames": false,
-    "rootDir": "./src"
+    "forceConsistentCasingInFileNames": false
   },
   "include": ["src/**/*"]
 }
