@@ -1,6 +1,6 @@
 {
   "name": "@the-andb/cli",
-  "version": "4.0.0-beta.2",
+  "version": "4.0.0",
   "publishConfig": {
     "access": "public"
   },
@@ -27,7 +27,7 @@
   "author": "ph4n4n",
   "license": "SEE LICENSE IN ../LICENSE",
   "dependencies": {
-    "@the-andb/core": "4.0.0-beta.2",
+    "@the-andb/core": "4.0.0",
     "andb-logger": "^1.0.3",
     "commander": "^11.1.0",
     "js-yaml": "^4.1.0"
