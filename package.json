@@ -4,7 +4,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "CLI tool for andb-core database migration and comparison",
+  "description": "The Andb - Simplest Database Migration Tool",
   "main": "index.js",
   "bin": {
     "andb": "andb.js"
@@ -27,7 +27,7 @@
   "author": "ph4n4n",
   "license": "SEE LICENSE IN ../LICENSE",
   "dependencies": {
-    "@the-andb/core": "4.0.0-beta.2",
+    "@the-andb/core": "workspace:*",
     "andb-logger": "^1.0.3",
     "commander": "^11.1.0",
     "js-yaml": "^4.1.0"
