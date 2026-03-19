@@ -11,15 +11,16 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "paths": {
-      "@the-andb/core": ["../andb-core/src"],
-      "@the-andb/core/*": ["../andb-core/src/*"]
+      "@the-andb/core": ["../andb-core/dist"],
+      "@the-andb/core/*": ["../andb-core/dist/*"]
     },
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,
     "noImplicitAny": false,
     "strictBindCallApply": false,
-    "forceConsistentCasingInFileNames": false
+    "forceConsistentCasingInFileNames": false,
+    "rootDir": "src"
   },
   "include": ["src/**/*"]
 }

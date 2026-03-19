@@ -59,7 +59,7 @@ export function register(program: Command) {
         const sqls = migrator.generateAlterSQL(diffOps, defaultMigrator);
 
         const safetyReport = await impactAnalysis.analyze(sqls);
-        const { summary: impact } = safetyReport as any;
+        const { impact } = safetyReport as any;
 
         const semanticReport = await semanticDiff.compare(srcDDL, targetDDL);
 
@@ -93,7 +93,7 @@ export function register(program: Command) {
 
           console.error('--- Generated ALTER TABLE SQL ---');
           if (sqls.length > 0) {
-            sqls.forEach((sql) => console.log(sql));
+            sqls.forEach((sql) => process.stdout.write(sql + '\n'));
 
             console.error('\n--- 🧠 Advisor Report ---');
             console.error(`Safety Level: ${safetyReport.level}`);

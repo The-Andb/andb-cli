@@ -1,17 +1,17 @@
 {
   "name": "@the-andb/cli",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "publishConfig": {
     "access": "public"
   },
   "description": "The Andb - Simplest Database Migration Tool",
   "main": "index.js",
   "bin": {
-    "andb": "andb.js"
+    "andb": "dist/index.js"
   },
   "type": "commonjs",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node scripts/build.mjs",
     "test": "jest",
     "test:cov": "jest --coverage",
     "lint": "eslint .",
@@ -27,14 +27,16 @@
   "author": "ph4n4n",
   "license": "SEE LICENSE IN ../LICENSE",
   "dependencies": {
-    "@the-andb/core": "4.0.0",
+    "@the-andb/core": "workspace:*",
     "andb-logger": "^1.0.3",
+    "better-sqlite3": "^12.8.0",
     "commander": "^11.1.0",
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {
-    "@types/node": "^20.3.1",
     "@types/jest": "^29.5.2",
+    "@types/node": "^20.3.1",
+    "esbuild": "^0.27.4",
     "jest": "^29.5.0",
     "ts-jest": "^29.1.0",
     "typescript": "^5.1.3"

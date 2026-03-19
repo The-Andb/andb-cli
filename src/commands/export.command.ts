@@ -19,7 +19,7 @@ export function register(program: Command) {
       }
 
       try {
-        const container = Container.create();
+        const container = await Container.create();
         logger.info(`Starting export for environment: ${env}`);
         const result = await container.exporter.exportSchema(env, options.name);
         logger.info(`Export completed successfully!`);

@@ -27,7 +27,7 @@ export function register(program: Command) {
       }
 
       try {
-        const container = Container.create();
+        const container = await Container.create();
         const comparator = container.comparator;
         const driverFactory = container.driverFactory;
         const configService = container.config;

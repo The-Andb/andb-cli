@@ -40,7 +40,7 @@ export function register(program: Command) {
       }
 
       try {
-        const container = Container.create();
+        const container = await Container.create();
         const comparator = container.comparator;
         const migrator = container.migrator;
         const driverFactory = container.driverFactory;

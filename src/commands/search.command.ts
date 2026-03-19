@@ -11,7 +11,7 @@ export function register(program: Command) {
     .argument('<name>', 'Object name to search for')
     .option('-e, --env <environment>', 'Environment to search in', 'DEV')
     .action(async (name: string, options: any) => {
-      const container = Container.create();
+      const container = await Container.create();
       const searchService = container.dependencySearch;
       const configService = container.config;
       const driverFactory = container.driverFactory;
