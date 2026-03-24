@@ -11,7 +11,7 @@ const program = new Command();
 program
   .name('andb')
   .version(require('../package.json').version)
-  .description('The Andb - Database Schema Migration Tool');
+  .description('TheAndb - Database Schema Migration Tool');
 
 // ... (skipping monkey-patch for brevity in Instruction, but replacing the whole block)
 

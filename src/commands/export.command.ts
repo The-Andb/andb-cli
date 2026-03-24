@@ -1,6 +1,7 @@
 const { getLogger } = require('andb-logger');
 import { Command } from 'commander';
-import { Container } from '@the-andb/core';
+import { CoreBridge } from '@the-andb/core';
+import { CliStorageStrategy } from '../storage/strategy/cli-storage.strategy';
 
 const logger = getLogger({ logName: 'ExportCommand' });
 
@@ -19,7 +20,8 @@ export function register(program: Command) {
       }
 
       try {
-        const container = await Container.create();
+        const strategy = new CliStorageStrategy();
+        const container = await CoreBridge.init(process.cwd(), '', strategy);
         logger.info(`Starting export for environment: ${env}`);
         const result = await container.exporter.exportSchema(env, options.name);
         logger.info(`Export completed successfully!`);

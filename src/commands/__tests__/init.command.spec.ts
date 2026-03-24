@@ -31,7 +31,7 @@ describe('InitCommand', () => {
 
     expect(fs.writeFileSync).toHaveBeenCalledWith(
       expect.stringContaining('andb.yaml'),
-      expect.stringContaining('The Andb Configuration')
+      expect.stringContaining('TheAndb Configuration')
     );
   });
 

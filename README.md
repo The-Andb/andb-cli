@@ -162,4 +162,4 @@ andb helper --list          # List generated npm scripts
 
 ---
 
-**MIT © The Andb**
+**MIT © TheAndb**

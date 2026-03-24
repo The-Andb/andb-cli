@@ -19,7 +19,7 @@ export function register(program: Command) {
       }
 
       const defaultConfig = `
-# The Andb Configuration
+# TheAndb Configuration
 # Documentation: https://github.com/The-Andb/andb
 
 # Environment Order (Migration Flow)

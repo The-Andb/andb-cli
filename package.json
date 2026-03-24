@@ -4,7 +4,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "The Andb - Simplest Database Migration Tool",
+  "description": "TheAndb - Simplest Database Migration Tool",
   "main": "index.js",
   "bin": {
     "andb": "dist/index.js"
@@ -31,7 +31,10 @@
     "andb-logger": "^1.0.3",
     "better-sqlite3": "^12.8.0",
     "commander": "^11.1.0",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "reflect-metadata": "^0.2.2",
+    "sqlite3": "^6.0.1",
+    "typeorm": "^0.3.28"
   },
   "devDependencies": {
     "@types/jest": "^29.5.2",

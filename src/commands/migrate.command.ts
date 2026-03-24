@@ -1,6 +1,7 @@
 const { getLogger } = require('andb-logger');
 import { Command } from 'commander';
-import { Container } from '@the-andb/core';
+import { CoreBridge } from '@the-andb/core';
+import { CliStorageStrategy } from '../storage/strategy/cli-storage.strategy';
 import * as readline from 'readline';
 
 const logger = getLogger({ logName: 'MigrateCommand' });
@@ -40,7 +41,8 @@ export function register(program: Command) {
       }
 
       try {
-        const container = await Container.create();
+        const strategy = new CliStorageStrategy();
+        const container = await CoreBridge.init(process.cwd(), '', strategy);
         const comparator = container.comparator;
         const migrator = container.migrator;
         const driverFactory = container.driverFactory;

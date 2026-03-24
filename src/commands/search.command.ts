@@ -1,5 +1,6 @@
 import { Command } from 'commander';
-import { Container } from '@the-andb/core';
+import { CoreBridge } from '@the-andb/core';
+import { CliStorageStrategy } from '../storage/strategy/cli-storage.strategy';
 const { getLogger } = require('andb-logger');
 
 const logger = getLogger({ logName: 'SearchCommand' });
@@ -11,7 +12,8 @@ export function register(program: Command) {
     .argument('<name>', 'Object name to search for')
     .option('-e, --env <environment>', 'Environment to search in', 'DEV')
     .action(async (name: string, options: any) => {
-      const container = await Container.create();
+      const strategy = new CliStorageStrategy();
+      const container = await CoreBridge.init(process.cwd(), '', strategy);
       const searchService = container.dependencySearch;
       const configService = container.config;
       const driverFactory = container.driverFactory;

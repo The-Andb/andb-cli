@@ -37,19 +37,12 @@ export function register(program: Command) {
       logger.info('🚀 JSON-RPC Server starting...');
 
       try {
-        await CoreBridge.init(options.userDataPath, options.sqlitePath);
+        const { CliStorageStrategy } = require('../storage/strategy/cli-storage.strategy');
+        const strategy = new CliStorageStrategy();
+        await CoreBridge.init(options.userDataPath, options.sqlitePath, strategy);
         logger.info('✅ Engine ready for RPC.');
 
-        const rl = readline.createInterface({
-          input: process.stdin,
-          terminal: false
-        });
-
-        rl.on('line', async (line) => {
-          if (!line.trim()) return;
-
-          try {
-            const request = JSON.parse(line);
+        const handleRpcRequest = async (request: any) => {
             const { id, method, params } = request;
 
             if (!method) {
@@ -194,13 +187,36 @@ export function register(program: Command) {
               logger.error(`Error executing ${method}:`, err);
               sendError(id, -32603, err.message || 'Internal error');
             }
-          } catch (e) {
-            sendError(null, -32700, 'Parse error');
-          }
-        });
+        };
+        if (process.send) {
+          logger.info('👂 Listening on IPC message channel...');
+          process.on('message', async (message: any) => {
+            try {
+              const request = typeof message === 'string' ? JSON.parse(message) : message;
+              await handleRpcRequest(request);
+            } catch (e) {
+              logger.error('Failed to parse IPC message:', e);
+            }
+          });
+        } else {
+          const rl = readline.createInterface({
+            input: process.stdin,
+            terminal: false
+          });
 
-        // Keep process alive
-        logger.info('👂 Listening on stdin...');
+          rl.on('line', async (line) => {
+            if (!line.trim()) return;
+            try {
+              const request = JSON.parse(line);
+              await handleRpcRequest(request);
+            } catch (e) {
+              sendError(null, -32700, 'Parse error');
+            }
+          });
+
+          // Keep process alive
+          logger.info('👂 Listening on stdin...');
+        }
 
       } catch (err: any) {
         logger.error('Failed to initialize RPC server:', err);
@@ -218,7 +234,11 @@ function sendResponse(id: any, result: any) {
     id,
     result
   };
-  process.stdout.write(JSON.stringify(response) + '\n');
+  if (process.send) {
+    process.send(response);
+  } else {
+    process.stdout.write(JSON.stringify(response) + '\n');
+  }
 }
 
 function sendError(id: any, code: number, message: string) {
@@ -227,7 +247,11 @@ function sendError(id: any, code: number, message: string) {
     id,
     error: { code, message }
   };
-  process.stdout.write(JSON.stringify(response) + '\n');
+  if (process.send) {
+    process.send(response);
+  } else {
+    process.stdout.write(JSON.stringify(response) + '\n');
+  }
 }
 
 function sendEvent(event: string, data: any) {
@@ -236,5 +260,9 @@ function sendEvent(event: string, data: any) {
     method: `event:${event}`,
     params: data
   };
-  process.stdout.write(JSON.stringify(notification) + '\n');
+  if (process.send) {
+    process.send(notification);
+  } else {
+    process.stdout.write(JSON.stringify(notification) + '\n');
+  }
 }
