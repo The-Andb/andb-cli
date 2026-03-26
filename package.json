@@ -1,6 +1,6 @@
 {
   "name": "@the-andb/cli",
-  "version": "4.0.3",
+  "version": "3.3.1",
   "publishConfig": {
     "access": "public"
   },
