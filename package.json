@@ -4,7 +4,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "TheAndb - Simplest Database Migration Tool",
+  "description": "TheAndb - Keep Going. Keep Syncing.",
   "main": "index.js",
   "bin": {
     "andb": "dist/index.js"
