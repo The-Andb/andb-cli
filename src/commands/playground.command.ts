@@ -28,7 +28,7 @@ export function register(program: Command) {
 
       try {
         const parser = new ParserService();
-        const comparator = new ComparatorService(parser, {} as any, { getDomainNormalization: () => ({ pattern: /(?!)/, replacement: '' }) });
+        const comparator = new ComparatorService(parser, {} as any, { getDomainNormalization: () => [{ pattern: /(?!)/, replacement: '' }] });
 
         const srcDDL = fs.readFileSync(options.source, 'utf-8');
         const targetDDL = fs.readFileSync(options.target, 'utf-8');
@@ -61,7 +61,7 @@ export function register(program: Command) {
         const safetyReport = await impactAnalysis.analyze(sqls);
         const { impact } = safetyReport as any;
 
-        const semanticReport = await semanticDiff.compare(srcDDL, targetDDL);
+        const semanticReport = await semanticDiff.compare(targetDDL, srcDDL);
 
         let exitCode = 0;
         let hasDestructive = safetyReport.hasDestructive;
