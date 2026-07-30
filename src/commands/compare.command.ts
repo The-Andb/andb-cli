@@ -7,6 +7,13 @@ import * as yaml from 'js-yaml';
 
 const logger = getLogger({ logName: 'CompareCommand' });
 
+// Exit codes:
+//   0 - schemas identical, comparison fully completed
+//   1 - non-destructive changes detected
+//   2 - destructive changes detected (DROP operations)
+//   3 - comparison did not fully complete (one or more objects failed to
+//       compare); a diff that looks "clean" under this condition must NOT
+//       be trusted as authoritative — see stderr for what was skipped
 export function register(program: Command) {
   program
     .command('compare')
@@ -18,6 +25,15 @@ export function register(program: Command) {
     .option('-r, --report [path]', 'Generate HTML report')
     .option('-f, --format [type]', 'Output format (text, json, yaml)', 'text')
     .option('--auto-backup [boolean]', 'Enable/disable auto-backup')
+    .addHelpText(
+      'after',
+      '\nExit codes:\n' +
+      '  0  schemas identical, comparison fully completed\n' +
+      '  1  non-destructive changes detected\n' +
+      '  2  destructive changes detected (DROP operations)\n' +
+      '  3  comparison did NOT fully complete — one or more objects failed to compare;\n' +
+      '     a diff that looks clean under this condition must not be trusted (see stderr)\n',
+    )
     .action(async (srcArg: string, destArg: string, options: any) => {
       const sourceEnv = options.source || srcArg;
       const destEnv = options.dest || destArg;
@@ -100,9 +116,19 @@ export function register(program: Command) {
             if (!hasDestructive && diff.objects.some((obj) => obj.operation === 'DROP')) hasDestructive = true;
           }
 
+          const compareErrors: { scope: string; name: string; message: string }[] = diff.errors ?? [];
+          const hasCompareErrors = compareErrors.length > 0;
+
           let exitCode = 0;
           if (diff.summary.totalChanges > 0) {
             exitCode = hasDestructive ? 2 : 1;
+          }
+          // A per-item comparison failure means the diff is incomplete — it
+          // must never be allowed to present as "clean" (exit 0). If real
+          // changes were already found elsewhere, that exit code (1/2) still
+          // takes priority since it's the more severe signal.
+          if (hasCompareErrors && exitCode === 0) {
+            exitCode = 3;
           }
 
           if (isMachineReadable) {
@@ -111,7 +137,9 @@ export function register(program: Command) {
               tables: diff.tables,
               droppedTables: diff.droppedTables,
               objects: diff.objects,
+              errors: compareErrors,
               destructive: hasDestructive,
+              incomplete: hasCompareErrors,
               exitCode,
             };
 
@@ -139,9 +167,19 @@ export function register(program: Command) {
               diff.objects.forEach((obj) => {
                 console.error(`✨ [${obj.type}] ${obj.name} (${obj.operation})`);
               });
+            } else if (hasCompareErrors) {
+              console.error('⚠️  No changes detected among items that could be compared — but see errors below.');
             } else {
               console.error('✅ Schemas are identical!');
             }
+          }
+
+          if (hasCompareErrors) {
+            console.error('\n--- Comparison Errors (INCOMPLETE RESULT) ---');
+            console.error(`⚠️  ${compareErrors.length} item(s) failed to compare and were skipped. This diff does NOT cover them:`);
+            compareErrors.forEach((e) => {
+              console.error(`  ❌ [${e.scope}] ${e.name}: ${e.message}`);
+            });
           }
 
           if (hasDestructive) {

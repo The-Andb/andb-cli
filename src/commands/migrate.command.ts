@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { CoreBridge } from '@the-andb/core';
 import { CliStorageStrategy } from '../storage/strategy/cli-storage.strategy';
 import * as readline from 'readline';
+import * as yaml from 'js-yaml';
 
 const logger = getLogger({ logName: 'MigrateCommand' });
 
@@ -20,6 +21,17 @@ function askConfirmation(query: string): Promise<boolean> {
   });
 }
 
+// A forgotten --force in a CI/CD pipeline used to hang forever waiting on a
+// readline prompt that no one is there to answer. Detect non-interactive
+// contexts up front and fail fast instead.
+function isNonInteractiveEnvironment(): boolean {
+  return !process.stdin.isTTY || process.env.CI === 'true';
+}
+
+// Exit codes:
+//   0 - no changes / migration applied cleanly
+//   1 - non-destructive changes pending (aborted/not forced) or objects failed to apply
+//   2 - destructive changes pending (aborted/not forced), or safety level is destructive
 export function register(program: Command) {
   program
     .command('migrate')
@@ -31,6 +43,16 @@ export function register(program: Command) {
     .option('-f, --force', 'Execute without confirmation')
     .option('--auto-backup [boolean]', 'Enable/disable auto-backup')
     .option('--dry-run', 'Preview migration with Safety Report without applying changes')
+    .option('--format <type>', 'Result output format for the executed migration (text, json, yaml)', 'text')
+    .addHelpText(
+      'after',
+      '\nExit codes:\n' +
+      '  0  no changes / migration applied cleanly\n' +
+      '  1  non-destructive changes pending (aborted/not forced), or objects failed to apply\n' +
+      '  2  destructive changes pending (aborted/not forced) or destructive safety level\n\n' +
+      'Non-interactive environments (CI=true, or no TTY on stdin) require --force;\n' +
+      'without it, the command fails fast instead of hanging on a confirmation prompt.\n',
+    )
     .action(async (srcArg: string, destArg: string, options: any) => {
       const sourceEnv = options.source || srcArg;
       const destEnv = options.dest || destArg;
@@ -165,11 +187,17 @@ export function register(program: Command) {
           const exitCode = safetyReport.hasDestructive ? 2 : 1;
 
           if (options.force) {
-            await executeWithOrchestrator(orchestration, sourceEnv, destEnv, objectsToMigrate, options.force);
+            await executeWithOrchestrator(orchestration, sourceEnv, destEnv, objectsToMigrate, options.force, options.format);
+          } else if (isNonInteractiveEnvironment()) {
+            logger.error(
+              'Refusing to prompt for confirmation in a non-interactive environment; pass --force to proceed.',
+            );
+            process.exitCode = exitCode;
+            return;
           } else {
             const confirmed = await askConfirmation('\nDo you want to execute these changes? (y/N): ');
             if (confirmed) {
-              await executeWithOrchestrator(orchestration, sourceEnv, destEnv, objectsToMigrate, options.force);
+              await executeWithOrchestrator(orchestration, sourceEnv, destEnv, objectsToMigrate, options.force, options.format);
             } else {
               logger.warn('Migration aborted by user.');
               process.exitCode = exitCode;
@@ -186,7 +214,14 @@ export function register(program: Command) {
     });
 }
 
-async function executeWithOrchestrator(orchestrator: any, srcEnv: string, destEnv: string, objects: any[], force?: boolean) {
+async function executeWithOrchestrator(
+  orchestrator: any,
+  srcEnv: string,
+  destEnv: string,
+  objects: any[],
+  force?: boolean,
+  format: string = 'text',
+) {
   logger.info('Executing migration via Orchestrator...');
   const result = await orchestrator.execute('migrate', {
     srcEnv,
@@ -195,17 +230,58 @@ async function executeWithOrchestrator(orchestrator: any, srcEnv: string, destEn
     force,
   });
 
-  if (result.success) {
-    logger.info(`🚀 Migration completed! ${result.successful.length} objects applied successfully.`);
-    if (result.failed.length > 0) {
-      logger.error(`❌ ${result.failed.length} objects failed to apply.`);
-      result.failed.forEach((f: any) => logger.error(`  - ${f.name}: ${f.error}`));
-      process.exitCode = 1;
-    } else {
-      process.exitCode = 0;
-    }
+  const failed: any[] = result.failed || [];
+  const successful: any[] = result.successful || [];
+  // partiallyApplied: true  -> some statements for that object ran before it
+  //                             failed. The object is now in a mixed state —
+  //                             re-running or rolling back needs care.
+  // partiallyApplied: false -> 0 of N statements ran; nothing happened to
+  //                             this object, safe to just retry.
+  const partiallyApplied = failed.filter((f: any) => f.partiallyApplied === true);
+  const notApplied = failed.filter((f: any) => f.partiallyApplied !== true);
+
+  const isMachineReadable = format === 'json' || format === 'yaml';
+
+  if (isMachineReadable) {
+    const output = {
+      success: result.success,
+      successful,
+      failed,
+      partiallyAppliedCount: partiallyApplied.length,
+      notAppliedCount: notApplied.length,
+      exitCode: failed.length > 0 ? 1 : 0,
+    };
+    const text = format === 'json' ? JSON.stringify(output, null, 2) : yaml.dump(output);
+    process.stdout.write(text + '\n');
+  } else if (result.success) {
+    logger.info(`🚀 Migration completed! ${successful.length} objects applied successfully.`);
   } else {
     logger.error('❌ Migration orchestration failed.');
-    process.exitCode = 1;
   }
+
+  if (partiallyApplied.length > 0) {
+    if (!isMachineReadable) {
+      console.error('\n🛑🛑🛑 HALF-MIGRATED OBJECTS DETECTED — DANGER 🛑🛑🛑');
+      console.error(
+        `${partiallyApplied.length} object(s) had SOME statements applied before failing. ` +
+        'These objects are now in a MIXED state on the destination and must be reviewed manually before re-running:',
+      );
+      partiallyApplied.forEach((f: any) => {
+        console.error(
+          `  🛑 [${f.type}] ${f.name}: ${f.statementIndex}/${f.totalStatements} statement(s) applied before failure — ${f.error}`,
+        );
+      });
+    }
+  }
+
+  if (notApplied.length > 0) {
+    if (!isMachineReadable) {
+      console.error('\n--- Failed Objects (not applied — safe to retry) ---');
+      notApplied.forEach((f: any) => {
+        console.error(`  ❌ [${f.type}] ${f.name}: 0/${f.totalStatements} statement(s) applied — ${f.error}`);
+      });
+    }
+  }
+
+  process.exitCode = failed.length > 0 ? 1 : 0;
 }
