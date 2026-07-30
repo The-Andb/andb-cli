@@ -8,7 +8,6 @@ const logger = getLogger({ logName: 'HelperCommand' });
 const ENVIRONMENTS = ['LOCAL', 'DEV', 'UAT', 'STAGE', 'PROD'];
 const DDL_TYPES = ['fn', 'sp', 'tbl', 'trg'];
 const MIGRATE_TYPES = ['new', 'update'];
-const DEPRECATE_TYPES = ['fn', 'sp', 'trg'];
 
 export function register(program: Command) {
   program
@@ -67,29 +66,15 @@ function showUsage() {
    npm run migrate:stage:update   # Update all DDL in STAGE
    npm run migrate:prod           # Full PROD migration
 
-4. Deprecate Commands:
-   npm run deprecate:{env}:{type}      # Deprecate specific DDL type
-   npm run deprecate:{env}:{type}:ote  # Remove OTE objects
-   npm run deprecate:{env}             # Deprecate all (except tables)
-   npm run dep:{env}:{type}            # Shorthand for deprecate
-
-   Examples:
-   npm run deprecate:uat:fn       # Deprecate functions in UAT
-   npm run dep:stage:sp:ote       # Remove OTE procedures in STAGE
-   npm run deprecate:prod         # Deprecate all in PROD
-
 📊 Environments: ${ENVIRONMENTS.join(', ')}
 🔧 DDL Types: ${DDL_TYPES.join(', ')}
 🔄 Migrate Types: ${MIGRATE_TYPES.join(', ')}
-⚠️ Deprecate Types: ${DEPRECATE_TYPES.join(', ')} (no tables)
 
 💡 Quick Examples:
 -----------------
 npm run export:dev               # Export all from DEV
 npm run compare:uat              # Compare UAT with DEV
 npm run migrate:stage            # Migrate STAGE from UAT
-npm run deprecate:prod:fn        # Deprecate functions in PROD
-npm run dep:uat:sp:ote           # Remove OTE procedures in UAT
 
 🛠️  Utility Commands:
 ---------------------
@@ -103,9 +88,6 @@ npm run helper --config          # Show current configuration
 - {env} = local, dev, uat, stage, prod
 - {type} = fn, sp, tbl, trg
 - {ddl} = fn, sp, tbl, trg
-- Tables cannot be deprecated (only functions, procedures, triggers)
-- OTE removal only applies to functions and procedures
-- Use 'dep' as shorthand for 'deprecate'
 `);
 }
 
